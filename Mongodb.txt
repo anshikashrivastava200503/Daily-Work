@@ -1,0 +1,51 @@
+Date: 14 September 2026
+
+Today's Work:
+1. Learned the difference between MySQL and NoSQL.
+2. Learned about relational and non-relational databases.
+3. Attended MongoDB preparation class.
+
+JSON(Javascript object notation)- Data will be in key value pairs
+BSON - Binary JSON 
+
+MYSQL        |       NO-SQL
+database     |    database
+Tables       |     Collections
+Rows         |     Documents
+Columns      |      Fields
+
+#Syntax in NO-SQL
+1-DB name creation
+  use("Poornima")
+2-Collection creation/ table creation
+  db.createcollection("Student")
+3-db.Student.insertone({
+                      })
+
+eg:-db.studentinsertone({
+name:"anshika",
+email:"anshika2005@gmail.com",
+phone:92561871821
+cgpa:9.0,
+Skills:["c","java","c++"],--Array
+address:{                      --Embedded
+         city:"jaipur",
+         zipcode:721461,
+         state:"rajasthan",
+        }
+     })
+
+eg:-use("ecommerce")
+db.createcollection("products")
+db.products.insertone({
+product_name:"laptop,
+stock:50,
+price:100000,
+category:"electronics,
+features:["16 gb ram" , "intel i5"],
+address :{
+       city:"agra",
+       pincode:282009,
+       state:"uttar pradesh,
+         }
+      })
