@@ -1,0 +1,163 @@
+STUDENT MANAGEMENT & PERFORMANCE SYSTEM
+MongoDB Project
+
+1. CREATE THE DATABASE
+
+use StudentManagementDB
+
+
+2. INSERT STUDENT RECORDS
+
+db.students.insertMany([
+  {
+    student_id: 101,
+    name: "Rahul Sharma",
+    age: 20,
+    department: "AI & Data Science",
+    course: "MongoDB",
+    marks: 85
+  },
+  {
+    student_id: 102,
+    name: "Priya Verma",
+    age: 21,
+    department: "Computer Science",
+    course: "Python",
+    marks: 90
+  },
+  {
+    student_id: 103,
+    name: "Aman Singh",
+    age: 20,
+    department: "AI & Data Science",
+    course: "MongoDB",
+    marks: 75
+  },
+  {
+    student_id: 104,
+    name: "Sneha Gupta",
+    age: 22,
+    department: "Computer Science",
+    course: "Python",
+    marks: 80
+  },
+  {
+    student_id: 105,
+    name: "Vikas Kumar",
+    age: 21,
+    department: "AI & Data Science",
+    course: "Java",
+    marks: 88
+  }
+])
+
+
+3. INSERT COURSE RECORDS
+
+db.courses.insertMany([
+  {
+    course_id: 201,
+    course_name: "MongoDB",
+    instructor: "Mr. Sharma",
+    duration: "3 Months"
+  },
+  {
+    course_id: 202,
+    course_name: "Python",
+    instructor: "Ms. Verma",
+    duration: "4 Months"
+  },
+  {
+    course_id: 203,
+    course_name: "Java",
+    instructor: "Mr. Singh",
+    duration: "3 Months"
+  }
+])
+
+
+4. DISPLAY RECORDS
+
+db.students.find()
+
+db.courses.find()
+
+db.students.find().pretty()
+
+db.courses.find().pretty()
+
+
+5. UPDATE STUDENT MARKS
+
+db.students.updateOne(
+  { student_id: 101 },
+  { $set: { marks: 92 } }
+)
+
+db.students.updateOne(
+  { student_id: 103 },
+  { $set: { marks: 82 } }
+)
+
+db.students.find(
+  {},
+  { _id: 0, student_id: 1, name: 1, marks: 1 }
+)
+
+
+6. CREATE AN INDEX ON COURSES
+
+db.courses.createIndex({ course_name: 1 })
+
+db.courses.getIndexes()
+
+db.courses.find({ course_name: "MongoDB" })
+
+
+7. AGGREGATION: STUDENT COUNT AND AVERAGE MARKS
+
+db.students.aggregate([
+  {
+    $group: {
+      _id: "$course",
+      total_students: { $sum: 1 },
+      average_marks: { $avg: "$marks" }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      course: "$_id",
+      total_students: 1,
+      average_marks: { $round: ["$average_marks", 2] }
+    }
+  },
+  {
+    $sort: { course: 1 }
+  }
+])
+
+
+EXPECTED OUTPUT
+
+Course       Total Students       Average Marks
+Java         1                    88.00
+MongoDB      2                    87.00
+Python       2                    85.00
+
+
+8. PROJECT SUMMARY
+
+Create database:       use StudentManagementDB
+Insert students:       db.students.insertMany()
+Insert courses:        db.courses.insertMany()
+Display records:       db.students.find()
+Update marks:          db.students.updateOne()
+Create index:          db.courses.createIndex()
+Check indexes:         db.courses.getIndexes()
+Aggregation:           db.students.aggregate()
+
+
+CONCLUSION
+
+The Student Management & Performance System demonstrates MongoDB operations such as database creation, inserting and updating documents, indexing, and aggregation. It can be used to manage student records and analyze academic performance across courses.
