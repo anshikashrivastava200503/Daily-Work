@@ -1,0 +1,206 @@
+MongoDB Practical: Replication, Backup, and Recovery
+
+Objective
+Implement replica-set replication, check replication health using rs.status(), create backups, restore data, and understand disaster-recovery strategies in MongoDB.
+
+Requirements
+
+PART A — REPLICATION AND REPLICA-SET HEALTH
+
+1. Start a local MongoDB server as a replica-set member
+Create a data directory for each local member. Example Windows folders:
+
+  C:\mongo-data\rs0-1
+  C:\mongo-data\rs0-2
+  C:\mongo-data\rs0-3
+
+Start three mongod processes in separate Command Prompt windows. If mongod is not in PATH, use its full path.
+
+Member 1:
+  mongod --replSet rs0 --port 27017 --dbpath "C:\mongo-data\rs0-1" --bind_ip localhost
+
+Member 2:
+  mongod --replSet rs0 --port 27018 --dbpath "C:\mongo-data\rs0-2" --bind_ip localhost
+
+Member 3:
+  mongod --replSet rs0 --port 27019 --dbpath "C:\mongo-data\rs0-3" --bind_ip localhost
+
+2. Connect to member 1
+Open another Command Prompt and run:
+
+  mongosh "mongodb://localhost:27017"
+
+3. Initiate the replica set
+In mongosh, run:
+
+  rs.initiate({
+    _id: "rs0",
+    members: [
+      { _id: 0, host: "localhost:27017" },
+      { _id: 1, host: "localhost:27018" },
+      { _id: 2, host: "localhost:27019" }
+    ]
+  })
+
+Wait briefly, then check:
+
+  rs.status()
+
+Check which member is primary:
+
+  rs.isMaster()
+
+On newer MongoDB versions, this command is also useful:
+
+  db.hello()
+
+Look for isWritablePrimary: true on the primary member. In rs.status(), a healthy set normally has one PRIMARY and the other available members as SECONDARY.
+
+4. Insert sample data on the primary
+Run these commands in mongosh after the replica set elects a primary:
+
+  use collegeDB
+
+  db.students.insertMany([
+    { rollNo: 1, name: "Aarav", department: "CSE", marks: 85 },
+    { rollNo: 2, name: "Diya", department: "IT", marks: 91 },
+    { rollNo: 3, name: "Kabir", department: "CSE", marks: 78 }
+  ])
+
+Verify the data:
+
+  db.students.find().pretty()
+
+5. Analyze rs.status() for replication health
+Run:
+
+  rs.status()
+
+Useful fields to inspect:
+
+Check replication lag from the primary:
+
+  rs.printSecondaryReplicationInfo()
+
+Depending on the MongoDB version, this helper may be deprecated or unavailable. If so, compare the members' optime information in rs.status() or use supported monitoring tools.
+
+Check the replica-set configuration:
+
+  rs.conf()
+
+Check the current connection's server role:
+
+  db.hello()
+
+1. Exactly one member should normally be PRIMARY.
+2. The remaining available members should be SECONDARY.
+3. Members should report health: 1.
+4. Replication lag should be small and should not keep increasing.
+5. No member should remain in STARTUP, RECOVERING, UNKNOWN, or DOWN unexpectedly.
+
+6. Read from a secondary (optional)
+Connect to a secondary in another Command Prompt:
+
+  mongosh "mongodb://localhost:27018"
+
+Then run:
+
+  db.hello()
+  rs.status()
+
+For a simple read-only test, enable secondary reads in that shell:
+
+  rs.secondaryOk()
+  use collegeDB
+  db.students.find().pretty()
+
+PART B — BACKUP OF A REPLICA SET
+
+7. Create a logical backup with mongodump
+Run this command from Command Prompt, not inside the mongosh prompt. Create a backup folder first if needed.
+
+Example backup of the collegeDB database from the replica-set connection string:
+
+  mongodump --uri="mongodb://localhost:27017,localhost:27018,localhost:27019/?replicaSet=rs0" --db=collegeDB --out="C:\mongo-backups\backup-2026-10-28"
+
+This creates a BSON-based logical backup in the specified output folder.
+
+To back up all databases, omit the --db option:
+
+  mongodump --uri="mongodb://localhost:27017,localhost:27018,localhost:27019/?replicaSet=rs0" --out="C:\mongo-backups\full-backup-2026-10-28"
+
+For an authenticated deployment, add credentials securely. Avoid putting passwords directly into command history. Use the authentication database and your organization's approved secret-handling method.
+
+8. Confirm the backup files exist
+In Command Prompt:
+
+  dir "C:\mongo-backups\backup-2026-10-28"
+
+You should see a database folder and BSON/metadata files for the collections. The exact files depend on the databases and options used.
+
+PART C — RESTORE AND RECOVERY
+
+9. Restore the sample database
+Use a separate test database when practising, so the original data is not overwritten. Run from Command Prompt:
+
+  mongorestore --uri="mongodb://localhost:27017/?replicaSet=rs0" --nsFrom="collegeDB.*" --nsTo="collegeDB_restore.*" "C:\mongo-backups\backup-2026-10-28\collegeDB"
+
+Then verify in mongosh:
+
+  use collegeDB_restore
+  show collections
+  db.students.find().pretty()
+
+If the dump was created with a different folder layout, adjust the path to the folder containing the collection BSON files.
+
+10. Restore over the original namespace (use with care)
+Only when you intentionally want to replace existing data, you can use --drop:
+
+  mongorestore --uri="mongodb://localhost:27017/?replicaSet=rs0" --drop --db=collegeDB "C:\mongo-backups\backup-2026-10-28\collegeDB"
+
+Warning: --drop deletes the target collections before restoring them. Verify the URI, database name, and backup path before running this command. Never test this on production data.
+
+11. Recovery after a member failure
+In a replica set, if the primary fails and a majority of voting members can communicate, the remaining eligible members can elect a new primary. Applications should use a replica-set connection string so the MongoDB driver can discover the new primary.
+
+Basic checks:
+
+  rs.status()
+  db.hello()
+
+If a secondary is stopped, restart its mongod process using the same port and dbpath. It should rejoin and catch up if its data is still valid. If a member's data directory is damaged or too far behind to catch up, follow the official resync/recovery procedure rather than deleting files at random.
+
+A replica set is not a substitute for backups: accidental deletes and logical corruption may replicate to every member.
+
+PART D — DISASTER-RECOVERY STRATEGY
+
+12. Recommended strategy
+1. Define RPO (Recovery Point Objective): the maximum acceptable amount of data loss measured in time.
+2. Define RTO (Recovery Time Objective): the maximum acceptable time to restore service.
+3. Keep automated, scheduled backups and retain multiple recovery points.
+4. Store at least one backup copy in a separate location or account; protect it with encryption and access controls.
+5. Monitor backup success, replica-set state, replication lag, disk space, and server availability.
+6. Test restores regularly in an isolated environment. A backup is useful only if it can be restored.
+7. Document who is responsible for recovery and keep the runbook accessible during an outage.
+8. For production, consider MongoDB's supported managed backup features or a tested snapshot strategy appropriate to the deployment.
+9. Record the backup date, database/cluster, tool version, and restore-test result.
+10. Never rely on replication alone for disaster recovery.
+
+PART E — QUICK PRACTICAL CHECKLIST
+
+Run these commands in mongosh:
+
+  rs.status()
+  rs.conf()
+  db.hello()
+  rs.printSecondaryReplicationInfo()
+
+Run these commands in Command Prompt:
+
+  mongodump --uri="mongodb://localhost:27017,localhost:27018,localhost:27019/?replicaSet=rs0" --db=collegeDB --out="C:\mongo-backups\backup-2026-10-28"
+
+  mongorestore --uri="mongodb://localhost:27017/?replicaSet=rs0" --nsFrom="collegeDB.*" --nsTo="collegeDB_restore.*" "C:\mongo-backups\backup-2026-10-28\collegeDB"
+
+Expected outcome:
+
+End of practical
